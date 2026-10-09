@@ -1,0 +1,8 @@
+fastapi[standard]
+sqlalchemy>=2.0.0
+asyncpg
+pydantic-settings
+aiosmtplib
+dnspython
+python-jose[cryptography]
+passlib[bcrypt]
