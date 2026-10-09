@@ -14,37 +14,45 @@ from app.utils.api_key_security import generate_raw_api_key, hash_api_key, extra
 async def create_api_key(
     db: AsyncSession, key_data: ApiKeyCreate, current_user: User
 ) -> ApiKeyCreateResponse:
-    raw_key = generate_raw_api_key()
-    hashed_key = hash_api_key(raw_key)
-    prefix = extract_key_prefix(raw_key)
+    try:
+        raw_key = generate_raw_api_key()
+        hashed_key = hash_api_key(raw_key)
+        prefix = extract_key_prefix(raw_key)
 
-    expires_at: Optional[datetime] = None
-    if key_data.expires_in_days:
-        expires_at = datetime.now(timezone.utc) + timedelta(days=key_data.expires_in_days)
+        expires_at: Optional[datetime] = None
+        if key_data.expires_in_days:
+            expires_at = datetime.now(timezone.utc) + timedelta(days=key_data.expires_in_days)
 
-    db_key = ApiKey(
-        user_id=current_user.id,
-        name=key_data.name,
-        key_prefix=prefix,
-        hashed_key=hashed_key,
-        is_active=True,
-        expires_at=expires_at
-    )
+        db_key = ApiKey(
+            user_id=current_user.id,
+            name=key_data.name,
+            key_prefix=prefix,
+            hashed_key=hashed_key,
+            is_active=True,
+            expires_at=expires_at
+        )
 
-    db.add(db_key)
-    await db.commit()
-    await db.refresh(db_key)
+        db.add(db_key)
+        await db.commit()
+        await db.refresh(db_key)
 
-    # Return full raw_key ONLY ONCE in the response
-    return ApiKeyCreateResponse(
-        id=db_key.id,
-        name=db_key.name,
-        key_prefix=db_key.key_prefix,
-        api_key=raw_key,
-        is_active=db_key.is_active,
-        created_at=db_key.created_at,
-        expires_at=db_key.expires_at
-    )
+        # Return full raw_key ONLY ONCE in the response
+        return ApiKeyCreateResponse(
+            id=db_key.id,
+            name=db_key.name,
+            key_prefix=db_key.key_prefix,
+            api_key=raw_key,
+            is_active=db_key.is_active,
+            created_at=db_key.created_at,
+            expires_at=db_key.expires_at
+        )
+    except:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create API Key"
+        )
+
 
 
 async def get_user_api_keys(db: AsyncSession, user_id: int) -> List[ApiKey]:
